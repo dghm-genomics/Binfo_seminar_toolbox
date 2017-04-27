@@ -43,7 +43,7 @@ toolcheck(){
 generate-vcf(){
   echo -e "$4" >> "$2/$3"
   $vsvc_samtools faidx "$1"
-  $vsvc_samtools mpileup -B -q 30 -f "$1" "$4"| java -jar $vsvc_varscan mpileup2cns --output-vcf 1 --min-coverage ${vsvc_mincoverage} --min-reads2 ${vsvc_minreads2} --min-avg-qual ${vsvc_minavgqual} --min-var-freq ${vsvc_minvarfreq} --min-freq-for-hom ${vsvc_minfreqforhom} --p-value ${vsvc_pvalue} --strand-filter ${vsvc_strandfilter} > "$2/${4%.*}_vs_${DATE}.vcf" 2>> "$2/$3"
+  $vsvc_samtools mpileup -B -q 30 -f "$1" "$4"| $vsvc_varscan mpileup2cns --output-vcf 1 --min-coverage $vsvc_mincoverage --min-reads2 $vsvc_minreads2 --min-avg-qual $vsvc_minavgqual --min-var-freq $vsvc_minvarfreq --min-freq-for-hom $vsvc_minfreqforhom --p-value $vsvc_pvalue --strand-filter $vsvc_strandfilter > "$2/${4%.*}_vs_$DATE.vcf" 2>> "$2/$3"
   rm -f "${ref}.fai"
   echo "$2/${4%.*}_vs_${DATE}.vcf"
 }
@@ -133,65 +133,73 @@ then
       \tvs-varcall.sh [OPTION]... [-r=REF INPUT-BAM(s)]...
 \033[1mDESCRIPTION\033[0m
 
-      \t Realise variant calling using VarScan2, and generate consensus fasta.
+  Realise variant calling using VarScan2, and generate consensus fasta.
 
-      \t\033[1m-c=MINCOVERAGE\033[0m\n\t  VarScan parameter \"mincoverage\" [10]
+  \033[1m-c=MINCOVERAGE\033[0m
+    VarScan parameter \"mincoverage\" [10]
 
-      \t\033[1m-d=TARGET_DIR\033[0m\n\t  specify target directory
+  \033[1m-d=TARGET_DIR\033[0m
+    specify target directory
       
-      \t\033[1m-D\033[0m\n\t  delete vcf file after run
+  \033[1m-D\033[0m
+    delete vcf file after run
       
-      \t\033[1m-f=MINVARFREQ\033[0m\n\t  VarScan parameter \"minvarfreq\" [0.8]
+  \033[1m-f=MINVARFREQ\033[0m
+    VarScan parameter \"minvarfreq\" [0.8]
       
-      \t\033[1m-h=MINFREQFORHOM\033[0m\n\t  VarScan parameter \"minfreqforhom\" [0.75]
+  \033[1m-h=MINFREQFORHOM\033[0m
+    VarScan parameter \"minfreqforhom\" [0.75]
       
-      \t\033[1m-p=PVALUE\033[0m\n\t  VarScan parameter \"pvalue\" [0.01]
+  \033[1m-p=PVALUE\033[0m
+    VarScan parameter \"pvalue\" [0.01]
       
-      \t\033[1m-q=MINAVGQUAL\033[0m\n\t  VarScan parameter \"minavgqual\" [20]
+  \033[1m-q=MINAVGQUAL\033[0m
+    VarScan parameter \"minavgqual\" [20]
       
-      \t\033[1m-r=REF\033[0m\n\t  REFERENCE-SEQUENCE-FASTA
+  \033[1m-r=REF\033[0m
+    REFERENCE-SEQUENCE-FASTA
       
-      \t\033[1m-R=MINREADS\033[0m\n\t  VarScan parameter \"minreads2\" [6]
+  \033[1m-R=MINREADS\033[0m
+    VarScan parameter \"minreads2\" [6]
       
-      \t\033[1m-s=STRANDFILTER\033[0m\n\t  VarScan parameter \"strandfilter\" [1]
-      
-      
-      \t\033[1m[1]\033[0m\t VarScan 2: Koboldt, D., Zhang, Q., Larson, D., Shen, D., McLellan, M., Lin,\n\t\t L., Miller, C., Mardis, E., Ding, L., & Wilson, R. (2012). VarScan 2:\n\t\t Somatic mutation and copy number alteration discovery in cancer by exome\n\t\t sequencing Genome Research DOI: 10.1101/gr.129684.111
-      
-      \t\033[1mURL\033[0m\t http://varscan.sourceforge.net
-      "
-      exit
+  \033[1m-s=STRANDFILTER\033[0m
+    VarScan parameter \"strandfilter\" [1]
+	  
+  \033[1m[1]\033[0m	VarScan 2: Koboldt, D., Zhang, Q., Larson, D., Shen, D., McLellan, M., Lin,
+	L., Miller, C., Mardis, E., Ding, L., & Wilson, R. (2012). VarScan 2:
+	Somatic mutation and copy number alteration discovery in cancer by exome
+	sequencing Genome Research DOI: 10.1101/gr.129684.111
+	    
+  \033[1mURL\033[0m	http://varscan.sourceforge.net
+  "
+  exit
 fi
 
 
 ### read user options
 #
+declare -i vsvc_mincoverage=10 vsvc_minreads2=6 vsvc_minavgqual=20 vsvc_strandfilter=1
 vsvc_CLEAR=0
 target_dir=varcall-consensus-vs_run_$DATE 
-vsvc_mincoverage=10
-vsvc_minreads2=6
-vsvc_minavgqual=20 
 vsvc_minvarfreq=0.8 
 vsvc_minfreqforhom=0.75
 vsvc_pvalue=0.01
-vsvc_strandfilter=1
 vsvc_samtools=
 vsvc_varscan=
 ref=
-
-while getopts c:d:Df:h:p:q:r:R:s: opt # 2>/dev/null
+while getopts c:d:Df:h:P:q:r:R:s: opt # 2>/dev/null
 do
    case $opt in
-      c) vsvc_mincoverage="$OPTARG";;
-      d) target_dir="$OPTARG";;
+      c) vsvc_mincoverage=$((OPTARG + 0));;
+      d) target_dir=$OPTARG;;
       D) vsvc_CLEAR=1;;
-      f) vsvc_minvarfreq="$OPTARG";;
-      h) vsvc_minfreqforhom="$OPTARG";;
-      p) vsvc_pvalue="$OPTARG";;
-      q) vsvc_minavgqual="$OPTARG";;
-      r) ref="$OPTARG";;
-      R) vsvc_minreads2="$OPTARG";;
-      s) vsvc_strandfilter="$OPTARG";;
+      f) vsvc_minvarfreq=$OPTARG;;
+      h) vsvc_minfreqforhom=$OPTARG;;
+      P) vsvc_pvalue=$OPTARG;;
+      q) vsvc_minavgqual=$((OPTARG + 0));;
+      r) ref=$OPTARG;;
+      R) vsvc_minreads2=$((OPTARG + 0));;
+      s) vsvc_strandfilter=$((OPTARG + 0));;
       *) echo "\n [call-vcvs.sh] ERROR invalid user option!\n"
    esac
 done
@@ -204,20 +212,18 @@ then
     exit 1
 fi
 
-
-
-
-
-
-
 ### check for dependencies and provide target dir
 #
 vsvc_samtools=$(toolcheck samtools)
 $vsvc_samtools 2> .toolcheck${CID}~ || true
 SAMTOOLS_VERSION=$(grep "Version" .toolcheck${CID}~)
 rm -f .toolcheck${CID}~
-vsvc_varscan=$(toolcheck VarScan.jar)
-mkdir "$target_dir"
+vsvc_varscan=$(toolcheck varscan)
+[ ! -d "$target_dir" ] && { mkdir "$target_dir"; }
+
+
+
+
 
 ### main section
 #
