@@ -189,7 +189,7 @@ do
       fi
       $bm_bwa mem -t $bm_threads "$locref" "$r1" "$r2" > "$targetid.sam"
       $bm_samtools view -bt "$locref.fai" "$targetid.sam" -o "${targetid}.bam"
-      $bm_samtools sort "${targetid}.bam" "${targetid}_sorted"
+      $bm_samtools sort "${targetid}.bam" > "${targetid}_sorted.bam"
     ) 2>> "$logfile"
 
     ### bam-sort and statistics
