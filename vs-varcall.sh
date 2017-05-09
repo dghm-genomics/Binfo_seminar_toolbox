@@ -17,10 +17,10 @@
 ## DEALINGS IN THE SOFTWARE.
 ##
 ##
-## It is expected to call "VarScan" (version 2) by "VarScan.jar" command! Otherwise you may adapt the input of the toolcheck function.
-## It is expected to call samtools (version 0.1.19) by "samtools" command! Otherwise you may adapt the input of the toolcheck function.
+## It is expected to call "VarScan" (version 2) by "VarScan.jar" command!
+## It is expected to call samtools (version 0.1.19) by "samtools" command!
 
-VERSION=V1.1
+VERSION=V1.2
 
 DATE=$(date +"%Y-%m-%d-%H-%M-%S")
 CID=$(date "+%N")
@@ -49,38 +49,45 @@ generate-vcf(){
 }
 
 vcf-filter(){
-  grep -v "^#" "$1"|
-   tr ',' '.'|
-   awk -v OFS="\t" '
-   BEGIN{i = 1}
-   {
-      split($10,PVAL,":")
-      split($4,c4,"")
-      split($5,c5,"")
-      if ($2$1 in SNP) {
-        if (PVALMAX[$2$1] < PVAL[8]) {
-          ID[$2$1] = $1
-          REF[$2$1] = c4[1]
-          SNP[$2$1] = c5[1]
-          PVALMAX[$2$1] = PVAL[8]
-        }
-      }
-      else {
-        index_c[i] = $2$1
-        i++
-        ID[$2$1] = $1
-        pos[$2$1] = $2
-        REF[$2$1] = c4[1]
-        SNP[$2$1] = c5[1]
-         PVALMAX[$2$1] = PVAL[8]
-      }
-   }
-   END {
-      for (j = 1; j <= i-1; j++)
-	print pos[index_c[j]],ID[index_c[j]],REF[index_c[j]],SNP[index_c[j]]
-   }
-   ' > "${1%.*}_${DATE}_filtered_vcf.txt"
-  echo "${1%.*}_${DATE}_filtered_vcf.txt"
+  awk -v OFS="\t" '
+    BEGIN {
+      i = 1
+    }
+    $1 !~ /^#/ {
+	sub(/,/,".",$0)
+	split($10,PVAL,":")
+	split($8,NC,";")
+	split($4,c4,"")
+	split($5,c5,"")
+	sub(/NC=/,"",NC[5])
+	sub(/%/,"",PVAL[7])
+	if (NC[5] == 0 && PVAL[8] != "" && (PVAL[7] + 0 <= 20 || PVAL[7] + 0 >= 80)) {
+	  store = 0
+	  if (($2,$1) in SNP) {
+	    if (PVALMAX[$2,$1] == 0){
+	      PVALMAX[$2,$1] = 1
+	    }
+	    store = PVALMAX[$2,$1] > PVAL[8]
+	  } else {
+	    index_d[i] = $1
+	    index_c[i] = $2
+	    i++
+	    store = 1
+	  }
+	  if (store) {
+	    ID[$2,$1] = $1
+	    pos[$2,$1] = $2
+	    REF[$2,$1] = c4[1]
+	    SNP[$2,$1] = c5[1]
+	    PVALMAX[$2,$1] = PVAL[8]
+	  }
+	}
+    } END {
+	  for (j = 1; j <= i-1; j++)
+	    print pos[index_c[j],index_d[j]],ID[index_c[j],index_d[j]],REF[index_c[j],index_d[j]],SNP[index_c[j],index_d[j]]
+    }
+    ' "$1" > "${1%.*}_${DATE}_filtered_vcf.txt"
+    echo "${1%.*}_${DATE}_filtered_vcf.txt"
 }
 
 generate-fasta(){
@@ -95,7 +102,7 @@ generate-fasta(){
                 header[i] = seed[1]
                 pos = 1
              }else{
-                for (j=pos; j<=(pos+length(ipl)-1); j++) {
+                for (j = pos; j <= pos + length(ipl) - 1; j++) {
                         bases_total++
                         index_c[bases_total] = j""header[i]
                         seq[index_c[bases_total]] = "N"
@@ -106,10 +113,10 @@ generate-fasta(){
     }
     {
       if ($4 == "."){
-              seq[$1$2] = $3
+              seq[$1 $2] = $3
       }
       else {
-            seq[$1$2] = $4
+            seq[$1 $2] = $4
       }
     }
     END {
@@ -140,36 +147,36 @@ then
 
   \033[1m-d=TARGET_DIR\033[0m
     specify target directory
-      
+
   \033[1m-D\033[0m
     delete vcf file after run
-      
+
   \033[1m-f=MINVARFREQ\033[0m
     VarScan parameter \"minvarfreq\" [0.8]
-      
+
   \033[1m-h=MINFREQFORHOM\033[0m
     VarScan parameter \"minfreqforhom\" [0.75]
-      
+
   \033[1m-p=PVALUE\033[0m
     VarScan parameter \"pvalue\" [0.01]
-      
+
   \033[1m-q=MINAVGQUAL\033[0m
     VarScan parameter \"minavgqual\" [20]
-      
+
   \033[1m-r=REF\033[0m
     REFERENCE-SEQUENCE-FASTA
-      
+
   \033[1m-R=MINREADS\033[0m
     VarScan parameter \"minreads2\" [6]
-      
+
   \033[1m-s=STRANDFILTER\033[0m
     VarScan parameter \"strandfilter\" [1]
-	  
+
   \033[1m[1]\033[0m	VarScan 2: Koboldt, D., Zhang, Q., Larson, D., Shen, D., McLellan, M., Lin,
 	L., Miller, C., Mardis, E., Ding, L., & Wilson, R. (2012). VarScan 2:
 	Somatic mutation and copy number alteration discovery in cancer by exome
 	sequencing Genome Research DOI: 10.1101/gr.129684.111
-	    
+
   \033[1mURL\033[0m	http://varscan.sourceforge.net
   "
   exit
@@ -180,8 +187,8 @@ fi
 #
 declare -i vsvc_mincoverage=10 vsvc_minreads2=6 vsvc_minavgqual=20 vsvc_strandfilter=1
 vsvc_CLEAR=0
-target_dir=varcall-consensus-vs_run_$DATE 
-vsvc_minvarfreq=0.8 
+target_dir=varcall-consensus-vs_run_$DATE
+vsvc_minvarfreq=0.8
 vsvc_minfreqforhom=0.75
 vsvc_pvalue=0.01
 vsvc_samtools=
@@ -200,7 +207,7 @@ do
       r) ref=$OPTARG;;
       R) vsvc_minreads2=$((OPTARG + 0));;
       s) vsvc_strandfilter=$((OPTARG + 0));;
-      *) echo "\n [call-vcvs.sh] ERROR invalid user option!\n"
+      *) echo "\n [vs-varcall] ERROR invalid user option!\n"
    esac
 done
 shift $((OPTIND-1))
@@ -227,13 +234,12 @@ vsvc_varscan=$(toolcheck varscan)
 
 ### main section
 #
-echo -e "\ncalling samtools:\n\n\t $vsvc_samtools\n\t $SAMTOOLS_VERSION\n" >> "$target_dir/varcall-vs_${ref%.*}_${DATE}.log"
-
 for inpf
 do
+  echo -e "\ncalling samtools:\n\n\t $vsvc_samtools\n\t $SAMTOOLS_VERSION\n" >> "$target_dir/varcall-vs_${ref%.*}_${inpf%.*}_${DATE}.log"
   ### call consensus with VarScan, generating vcf files
   #
-  vcf_file=$(generate-vcf "$ref" "$target_dir" "varcall-vs_${ref%.*}_${DATE}.log" "$inpf")
+  vcf_file=$(generate-vcf "$ref" "$target_dir" "/varcall-vs_${ref%.*}_${inpf%.*}_${DATE}.log" "$inpf")
   ### generate reduced table from vcf file including consensus
   ### bases and snps only
   #
