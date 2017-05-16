@@ -15,7 +15,7 @@
 ## CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 ## DEALINGS IN THE SOFTWARE.
 
-VERSION=V1.1
+VERSION=V1.2
 DATE=$(date +"%Y-%m-%d-%H-%M-%S")
 CID=$(date +"%N")
 set -eu
@@ -40,36 +40,42 @@ open_file(){
 #
 if [ $# -eq 0 ]
 then
-    echo -e "\n\033[1mProgram\033[0m\n\tfastq-coverage.sh (${VERSION}) - analyse fastq files and infer coverage
-\033[1mSYNOPSIS\033[0m\n\tfastq-coverage.sh [OPTION]... [-g=GENOME_LENGTH FASTQ-FILE...]
-\033[1mDESCRIPTION\033[0m
-    \t The script figures the amount of reads, bases, and bases with a Q-value >= 20
-    \t from fastq files and calculates:
-    
-    \t\t coverage = bp / expected genome length
-    
-    \t\t weighted coverage = weighted bp / expected genome length.
-    
-    \t All values will be stored in a fastq-coverage table file.
-    
-    \t It is possible to filter fastq files by their coverages (-s/-d).
-    
-    \t\033[1m-d=MIN_COVERAGE\033[0m
-    \t   specify coverage to deselect fastq file(s) >= MIN_COVERAGE
-    
-    \t\033[1m-g=GENOME_LENGTH\033[0m
-    \t  specify expected genome length
-    
-    \t\033[1m-l\033[0m
-    \t  just list the file ids but don't copy selection/deselection
-    
-    \t\033[1m-s=MIN_COVERAGE\033[0m
-    \t  specify coverage to select fastq file(s) >= MIN_COVERAGE
-    
-    \t\033[1m-t=STAT_TABLE_FILE\033[0m
-    \t  specify name of already existing fastq-coverage table file
-    "
-    exit
+  echo -e "
+  \033[1mProgram\033[0m
+      fastq-coverage.sh (${VERSION}) - analyse fastq files and infer coverage
+
+  \033[1mSYNOPSIS\033[0m
+      fastq-coverage.sh [OPTION]... [-g=GENOME_LENGTH FASTQ-FILE...]
+
+  \033[1mDESCRIPTION\033[0m
+
+    The script figures the amount of reads, bases, and bases with a Q-value >= 20
+    from fastq files and calculates:
+
+      coverage = bp / expected genome length
+
+      weighted coverage = weighted bp / expected genome length.
+
+    All values will be stored in a fastq-coverage table file.
+
+    It is possible to filter fastq files by their coverages (-s/-d).
+
+    \033[1m-d=MIN_COVERAGE\033[0m
+      specify coverage to deselect fastq file(s) >= MIN_COVERAGE
+
+    \033[1m-g=GENOME_LENGTH\033[0m
+      specify expected genome length
+
+    \033[1m-l\033[0m
+      just list the file ids but don't copy selection/deselection
+
+    \033[1m-s=MIN_COVERAGE\033[0m
+      specify coverage to select fastq file(s) >= MIN_COVERAGE
+
+    \033[1m-t=STAT_TABLE_FILE\033[0m
+      specify name of already existing fastq-coverage table file
+  "
+  exit
 fi
 
 ### read user options
@@ -110,7 +116,7 @@ then
       file_info=$(du -h "$fq_file"| awk '{print $2"\t"$1}')
       base_count=$(open_file "$fq_file"| sed -n '4~4p'| tr -d '\n'| wc -c)
       w_base_count=$(open_file "$fq_file"| sed -n '4~4p'| tr -d '\n!"#$%&'"'"'()*+,-./01234'| wc -c)
-      read_count=$(wc -l "$fq_file"| awk '{print $1 / 4}')
+      read_count=$(open_file "$fq_file"| wc -l| awk '{print $1 / 4}')
       calculations=$(echo "$base_count $w_base_count $read_count $fc_gl"| awk '{printf "%4.0f\t%4.1f\t%4.1f\n", ($1 / $3), ($1 / $4), ($2 / $4)}')
       echo -e "$file_info\t$read_count\t$base_count\t$w_base_count\t$calculations"| tee -a "fastq-coverage_${DATE}.txt"
       fc_stat_table="fastq-coverage_${DATE}.txt"
@@ -126,8 +132,9 @@ then
 fi
 if [ "$fc_selected_ids"  ]
 then
-    echo -e "\n [fastq-coverage] selection\n\n$fc_selected_ids\n"
-    if [ -z "$fc_list" ] 
+    file_count=$(echo -e "$fc_selected_ids"| wc -l)
+    echo -e "$fc_selected_ids\n$file_count"
+    if [ -z "$fc_list" ]
     then
 	fc_copy_ids=$(
 	  echo -e "$fc_selected_ids"|
@@ -152,7 +159,7 @@ then
 	)
 	mkdir "fastq_file_selection_${DATE}" || exit 1
 	cp ${fc_copy_ids} "fastq_file_selection_${DATE}"
-	echo -e "\n [fastq-coverage] selection\n\n$(echo $fc_copy_ids| tr ' ' '\n')\n"
+	echo -e "\n [fastq-coverage] selection\n\n$(echo $fc_copy_ids| tr ' ' '\n'| nl)\n"
 	echo -e "\n copied to fastq_file_selection_${DATE}\n"
     fi
 fi
